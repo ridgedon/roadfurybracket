@@ -186,18 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     adminLoginButton.addEventListener('click', () => {
-        if (adminPassword.value === 'admin') { // Replace with a secure password
-            isAdminLoggedIn = true;
-            adminPanel.querySelector('#admin-login').style.display = 'block';
-            initBracketButton.style.display = 'inline-block';
-            adminMessage.textContent = 'Logged in as admin';
-            debugLog('Admin logged in');
-            displayCurrentPairs(); // Refresh the display to show admin controls if needed
-        } else {
-            adminMessage.textContent = 'Incorrect password. Please try again.';
-            debugLog('Failed admin login attempt');
-        }
-    });
+    console.log('Login attempt');
+    isAdminLoggedIn = true;
+    adminPanel.querySelector('#admin-login').style.display = 'none';
+    initBracketButton.style.display = 'inline-block';
+    adminMessage.textContent = 'Logged in as admin';
+    debugLog('Admin logged in');
+    displayCurrentPairs();
+});
 
     initBracketButton.addEventListener('click', initializeBracket);
 
