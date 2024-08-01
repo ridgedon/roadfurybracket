@@ -35,66 +35,78 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadBracketState() {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                headers: { 'X-Master-Key': JSONBIN_API_KEY }
-            });
-            if (!response.ok) throw new Error('Failed to load state');
-            const data = await response.json();
-            debugLog('State loaded successfully');
-            return data.record;
-        } catch (error) {
-            debugLog(`Error loading state: ${error.message}`);
-            return null;
-        }
+    try {
+        const response = await fetch(JSONBIN_URL, {
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        });
+        if (!response.ok) throw new Error('Failed to load state');
+        const data = await response.json();
+        console.log('Loaded state:', data.record); // Log the entire state
+        debugLog('State loaded successfully');
+        return data.record;
+    } catch (error) {
+        debugLog(`Error loading state: ${error.message}`);
+        return null;
     }
+}
 
     async function displayCurrentPairs() {
-        const state = await loadBracketState();
-        if (!state) {
-            bracketContainer.innerHTML = '<p>No bracket data found. Admin must initialize the bracket.</p>';
-            return;
-        }
-
-        const { names, round, votes } = state;
-
-        bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
-
-        if (names.length <= 1) {
-            bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
-            return;
-        }
-
-        const userProgress = getUserProgress(round);
-        const startIndex = userProgress * 4;
-
-        for (let i = startIndex; i < Math.min(startIndex + 4, names.length); i += 2) {
-            const name1 = names[i];
-            const name2 = names[i + 1] || 'Bye';
-
-            const votes1 = (votes[i] && votes[i][0]) || 0;
-            const votes2 = (votes[i] && votes[i][1]) || 0;
-
-            bracketContainer.innerHTML += `
-                <div class="pair">
-                    <button onclick="vote(${i}, 0)">${name1} (${votes1} votes)</button>
-                    <button onclick="vote(${i}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2} (${votes2} votes)</button>
-                </div>
-            `;
-        }
-
-        if (userProgress * 4 >= names.length) {
-            bracketContainer.innerHTML += '<h3>You have completed voting for this round.</h3>';
-            if (isAdminLoggedIn) {
-                const nextRoundButton = document.createElement('button');
-                nextRoundButton.textContent = 'Start Next Round';
-                nextRoundButton.onclick = startNextRound;
-                bracketContainer.appendChild(nextRoundButton);
-            }
-        }
-
-        displayVotes(votes || {});
+    const state = await loadBracketState();
+    if (!state) {
+        bracketContainer.innerHTML = '<p>No bracket data found. Admin must initialize the bracket.</p>';
+        return;
     }
+
+    console.log('Current state:', state); // Log the current state
+
+    const { names, round, votes } = state;
+
+    if (!names || names.length === 0) {
+        bracketContainer.innerHTML = '<p>No names found in the bracket. Admin must initialize the bracket.</p>';
+        return;
+    }
+
+    bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
+
+    if (names.length <= 1) {
+        bracketContainer.innerHTML += `<h3>Final Winner: ${names[0] || 'Unknown'}</h3>`;
+        return;
+    }
+
+    const userProgress = getUserProgress(round);
+    const startIndex = userProgress * 4;
+
+    console.log('User progress:', userProgress, 'Start index:', startIndex); // Log progress and start index
+
+    for (let i = startIndex; i < Math.min(startIndex + 4, names.length); i += 2) {
+        const name1 = names[i] || 'Unknown';
+        const name2 = (i + 1 < names.length ? names[i + 1] : 'Bye') || 'Unknown';
+
+        const votes1 = (votes[i] && votes[i][0]) || 0;
+        const votes2 = (votes[i] && votes[i][1]) || 0;
+
+        console.log(`Pair ${i/2 + 1}:`, name1, 'vs', name2); // Log each pair
+
+        bracketContainer.innerHTML += `
+            <div class="pair">
+                <button onclick="vote(${i}, 0)">${name1} (${votes1} votes)</button>
+                <button onclick="vote(${i}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2} (${votes2} votes)</button>
+            </div>
+        `;
+    }
+
+    if (userProgress * 4 >= names.length) {
+        bracketContainer.innerHTML += '<h3>You have completed voting for this round.</h3>';
+        if (isAdminLoggedIn) {
+            const nextRoundButton = document.createElement('button');
+            nextRoundButton.textContent = 'Start Next Round';
+            nextRoundButton.onclick = startNextRound;
+            bracketContainer.appendChild(nextRoundButton);
+        }
+    }
+
+    displayVotes(votes || {});
+}
 
     function getUserProgress(round) {
         const progress = localStorage.getItem(`round${round}Progress`);
@@ -174,9 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     adminLoginButton.addEventListener('click', () => {
-        if (adminPassword.value === 'your-secret-password') { // Replace with a secure password
+        if (adminPassword.value === 'admin') { // Replace with a secure password
             isAdminLoggedIn = true;
-            adminPanel.querySelector('#admin-login').style.display = 'none';
+            adminPanel.querySelector('#admin-login').style.display = 'block';
             initBracketButton.style.display = 'inline-block';
             adminMessage.textContent = 'Logged in as admin';
             debugLog('Admin logged in');
