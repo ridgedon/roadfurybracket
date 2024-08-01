@@ -10,179 +10,167 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
     
-let isAdminLoggedIn = false;
-
-function displayVotes(votes, currentRound) {
-    const voteDisplay = document.createElement('div');
-    voteDisplay.innerHTML = '<h3>All Votes:</h3>';
-    for (const [key, pairVotes] of Object.entries(votes)) {
-        const round = Math.floor(key / 1000) + 1;
-        const pairIndex = key % 1000;
-        voteDisplay.innerHTML += `Round ${round}, Pair ${pairIndex}: ${pairVotes[0]} - ${pairVotes[1]}<br>`;
-    }
-    bracketContainer.appendChild(voteDisplay);
-}
+  let isAdminLoggedIn = false;
 
     function debugLog(message) {
         console.log(message);
         debugElement.innerHTML += `<p>${message}</p>`;
     }
 
-   async function saveBracketState(state) {
-    try {
-        console.log('Attempting to save state:', state);
-        const response = await fetch(JSONBIN_URL, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_API_KEY
-            },
-            body: JSON.stringify(state)
-        });
-        if (!response.ok) throw new Error('Failed to save state');
-        const savedData = await response.json();
-        console.log('State saved successfully:', savedData);
-        debugLog('State saved successfully');
-    } catch (error) {
-        console.error('Error saving state:', error);
-        debugLog(`Error saving state: ${error.message}`);
+    async function saveBracketState(state) {
+        try {
+            const response = await fetch(JSONBIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_API_KEY
+                },
+                body: JSON.stringify(state)
+            });
+            if (!response.ok) throw new Error('Failed to save state');
+            debugLog('State saved successfully');
+        } catch (error) {
+            debugLog(`Error saving state: ${error.message}`);
+        }
     }
-}
 
-async function loadBracketState() {
-    try {
-        console.log('Attempting to load state');
-        const response = await fetch(JSONBIN_URL, {
-            headers: { 'X-Master-Key': JSONBIN_API_KEY }
-        });
-        if (!response.ok) throw new Error('Failed to load state');
-        const data = await response.json();
-        if (!data.record || Object.keys(data.record).length === 0) {
-            console.log('No existing state found');
-            debugLog('No existing state found');
+    async function loadBracketState() {
+        try {
+            const response = await fetch(JSONBIN_URL, {
+                headers: { 'X-Master-Key': JSONBIN_API_KEY }
+            });
+            if (!response.ok) throw new Error('Failed to load state');
+            const data = await response.json();
+            debugLog('State loaded successfully');
+            return data.record;
+        } catch (error) {
+            debugLog(`Error loading state: ${error.message}`);
             return null;
         }
-        console.log('State loaded successfully:', data.record);
-        debugLog('State loaded successfully');
-        return data.record;
-    } catch (error) {
-        console.error('Error loading state:', error);
-        debugLog(`Error loading state: ${error.message}`);
-        return null;
     }
-}
 
-    async function displayCurrentPair() {
-        debugLog('Displaying current pair');
+    async function displayCurrentPairs() {
         const state = await loadBracketState();
         if (!state) {
             bracketContainer.innerHTML = '<p>No bracket data found. Admin must initialize the bracket.</p>';
             return;
         }
 
-    const { names, currentPair, round, votes } = state;
+        const { names, round, votes } = state;
 
-    bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
+        bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
 
-    if (currentPair >= names.length) {
-        bracketContainer.innerHTML += '<h3>Round Complete</h3>';
-        if (names.length > 1) {
+        if (names.length <= 1) {
+            bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
+            return;
+        }
+
+        const userProgress = getUserProgress(round);
+        const startIndex = userProgress * 4;
+
+        for (let i = startIndex; i < Math.min(startIndex + 4, names.length); i += 2) {
+            const name1 = names[i];
+            const name2 = names[i + 1] || 'Bye';
+
+            const votes1 = (votes[i] && votes[i][0]) || 0;
+            const votes2 = (votes[i] && votes[i][1]) || 0;
+
+            bracketContainer.innerHTML += `
+                <div class="pair">
+                    <button onclick="vote(${i}, 0)">${name1} (${votes1} votes)</button>
+                    <button onclick="vote(${i}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2} (${votes2} votes)</button>
+                </div>
+            `;
+        }
+
+        if (userProgress * 4 >= names.length) {
+            bracketContainer.innerHTML += '<h3>You have completed voting for this round.</h3>';
             if (isAdminLoggedIn) {
                 const nextRoundButton = document.createElement('button');
                 nextRoundButton.textContent = 'Start Next Round';
                 nextRoundButton.onclick = startNextRound;
                 bracketContainer.appendChild(nextRoundButton);
-            } else {
-                bracketContainer.innerHTML += '<p>Waiting for admin to start next round.</p>';
             }
-        } else {
-            bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
         }
-    } else {
-        const name1 = names[currentPair];
-        const name2 = names[currentPair + 1] || 'Bye';
 
-        bracketContainer.innerHTML += `
-            <div class="pair">
-                <button onclick="vote(${currentPair}, 0)">${name1}</button>
-                <button onclick="vote(${currentPair}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2}</button>
-            </div>
-        `;
-        debugLog(`Displayed pair: ${name1} vs ${name2}`);
+        displayVotes(votes || {});
     }
 
-        displayVotes(votes || {}, round);
+    function getUserProgress(round) {
+        const progress = localStorage.getItem(`round${round}Progress`);
+        return progress ? parseInt(progress) : 0;
+    }
 
-}
+    function setUserProgress(round, progress) {
+        localStorage.setItem(`round${round}Progress`, progress.toString());
+    }
 
     async function vote(pairIndex, choice) {
-    debugLog(`Vote cast: Pair ${pairIndex}, Choice ${choice}`);
-    let state = await loadBracketState();
-    if (!state) {
-        console.error('Failed to load state for voting');
-        return;
+        const state = await loadBracketState();
+        if (!state.votes) state.votes = {};
+        if (!state.votes[pairIndex]) state.votes[pairIndex] = [0, 0];
+        state.votes[pairIndex][choice]++;
+        await saveBracketState(state);
+
+        const userProgress = getUserProgress(state.round);
+        setUserProgress(state.round, userProgress + 1);
+
+        await displayCurrentPairs();
     }
-    const voteKey = (state.round - 1) * 1000 + pairIndex;
-    if (!state.votes[voteKey]) state.votes[voteKey] = [0, 0];
-    state.votes[voteKey][choice]++;
-    state.currentPair = pairIndex + 2;
-    console.log('Updated state before saving:', state);
-    await saveBracketState(state);
-    await displayCurrentPair();
-}
 
     async function startNextRound() {
-    if (!isAdminLoggedIn) {
-        alert("You must be logged in as an admin to start the next round.");
-        return;
-    }
-    debugLog('Starting next round');
-    const state = await loadBracketState();
-    const winners = [];
-    for (let i = 0; i < state.names.length; i += 2) {
-        const votes = state.votes[i] || [0, 0];
-        winners.push(state.names[i + (votes[0] >= votes[1] ? 0 : 1)]);
-    }
-    
-    // Preserve votes from previous rounds
-    const newVotes = { ...state.votes };
-    // Add empty vote objects for the new round
-    for (let i = 0; i < winners.length; i += 2) {
-        newVotes[state.round * 1000 + i] = [0, 0];  // Use a large offset to avoid conflicts
+        if (!isAdminLoggedIn) {
+            alert("You must be logged in as an admin to start the next round.");
+            return;
+        }
+        const state = await loadBracketState();
+        const winners = [];
+        for (let i = 0; i < state.names.length; i += 2) {
+            const votes = state.votes[i] || [0, 0];
+            winners.push(state.names[i + (votes[0] > votes[1] ? 0 : 1)]);
+        }
+        await saveBracketState({
+            names: winners,
+            round: state.round + 1,
+            votes: {}
+        });
+        // Reset user progress for the new round
+        setUserProgress(state.round + 1, 0);
+        displayCurrentPairs();
     }
 
-    await saveBracketState({
-        names: winners,
-        currentPair: 0,
-        round: state.round + 1,
-        votes: newVotes
-    });
-    displayCurrentPair();
-}
+    function displayVotes(votes) {
+        const voteDisplay = document.createElement('div');
+        voteDisplay.innerHTML = '<h3>Current Votes:</h3>';
+        for (const [pairIndex, pairVotes] of Object.entries(votes)) {
+            voteDisplay.innerHTML += `Pair ${pairIndex}: ${pairVotes[0]} - ${pairVotes[1]}<br>`;
+        }
+        bracketContainer.appendChild(voteDisplay);
+    }
 
     async function initializeBracket() {
         if (!isAdminLoggedIn) {
             alert("You must be logged in as an admin to initialize the bracket.");
             return;
         }
-        debugLog('Initializing new bracket');
         const initialNames = [
             "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
-        "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
-        "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
-        "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
-        "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
-        "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
-        "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
-        "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
-        "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
-        "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
-        "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
-        "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
-        "Fault: Ignition"
+            "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
+            "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
+            "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
+            "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
+            "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
+            "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
+            "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
+            "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
+            "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
+            "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
+            "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
+            "Fault: Ignition"
         ];
-        await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
-        displayCurrentPair();
+        await saveBracketState({ names: initialNames, round: 1, votes: {} });
+        setUserProgress(1, 0);
+        displayCurrentPairs();
     }
 
     adminLoginButton.addEventListener('click', () => {
@@ -192,6 +180,7 @@ async function loadBracketState() {
             initBracketButton.style.display = 'inline-block';
             adminMessage.textContent = 'Logged in as admin';
             debugLog('Admin logged in');
+            displayCurrentPairs(); // Refresh the display to show admin controls if needed
         } else {
             adminMessage.textContent = 'Incorrect password. Please try again.';
             debugLog('Failed admin login attempt');
@@ -200,8 +189,8 @@ async function loadBracketState() {
 
     initBracketButton.addEventListener('click', initializeBracket);
 
-    debugLog('Script loaded, attempting to display current pair');
-    displayCurrentPair();
+    debugLog('Script loaded, attempting to display current pairs');
+    displayCurrentPairs();
 
     window.vote = vote;
     window.startNextRound = startNextRound;
