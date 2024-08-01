@@ -56,6 +56,11 @@ async function loadBracketState() {
         });
         if (!response.ok) throw new Error('Failed to load state');
         const data = await response.json();
+        if (!data.record || Object.keys(data.record).length === 0) {
+            console.log('No existing state found');
+            debugLog('No existing state found');
+            return null;
+        }
         console.log('State loaded successfully:', data.record);
         debugLog('State loaded successfully');
         return data.record;
@@ -156,26 +161,33 @@ async function loadBracketState() {
 }
 
     async function initializeBracket() {
-        debugLog('Initializing bracket');
-        const initialNames = [
-            "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
-            "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
-            "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
-            "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
-            "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
-            "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
-            "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
-            "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
-            "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
-            "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
-            "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
-            "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
-            "Fault: Ignition"
-        ];
-        await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
-        displayCurrentPair();
+    debugLog('Checking for existing bracket data');
+    const existingState = await loadBracketState();
+    if (existingState && existingState.names && existingState.names.length > 0) {
+        debugLog('Existing bracket data found, loading it');
+        await displayCurrentPair();
+        return;
     }
 
+    debugLog('No existing data found, initializing new bracket');
+    const initialNames = [
+        "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
+        "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
+        "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
+        "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
+        "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
+        "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
+        "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
+        "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
+        "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
+        "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
+        "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
+        "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
+        "Fault: Ignition"
+    ];
+    await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
+    displayCurrentPair();
+}
     adminLoginButton.addEventListener('click', () => {
         if (adminPassword.value === 'your-secret-password') { // Replace with a secure password
             isAdminLoggedIn = true;
@@ -189,8 +201,8 @@ async function loadBracketState() {
         }
     });
 
-    debugLog('Script loaded, initializing bracket');
-    initializeBracket();
+    debugLog('Script loaded, attempting to display current pair');
+    displayCurrentPair();
 
     window.vote = vote;
     window.startNextRound = startNextRound;
