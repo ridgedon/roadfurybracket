@@ -22,20 +22,31 @@ async function saveBracketState(state) {
     }
 
     async function loadBracketState() {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                headers: {
-                    'X-Master-Key': JSONBIN_API_KEY
-                }
-            });
-            if (!response.ok) throw new Error('Failed to load state');
-            const data = await response.json();
-            return data.record;
-        } catch (error) {
-            console.error('Error loading bracket state:', error);
-            return null;
-        }
+    try {
+        const response = await fetch(JSONBIN_URL, {
+            headers: {
+                'X-Master-Key': JSONBIN_API_KEY
+            }
+        });
+        if (!response.ok) throw new Error('Failed to load state');
+        const data = await response.json();
+        if (!data.record) throw new Error('Invalid state data');
+        
+        // Ensure all necessary properties exist
+        const state = {
+            names: data.record.names || [],
+            round: data.record.round || 1,
+            pairIndex: data.record.pairIndex || 0,
+            votes: data.record.votes || {},
+            roundStartTime: data.record.roundStartTime,
+            isComplete: data.record.isComplete || false
+        };
+        return state;
+    } catch (error) {
+        console.error('Error loading bracket state:', error);
+        return null;
     }
+}
 
     async function displayCurrentPair() {
         const state = await loadBracketState();
@@ -91,12 +102,22 @@ async function saveBracketState(state) {
     }
 
     async function vote(name) {
+    try {
         const state = await loadBracketState();
-        if (!state) return;
+        if (!state) {
+            console.error('Failed to load state');
+            return;
+        }
 
-        let { votes, round, pairIndex } = state;
+        let { votes, round, pairIndex, roundStartTime } = state;
         
-        // Initialize votes for this pair if they don't exist
+        // Start the timer if this is the first vote of the round
+        if (!roundStartTime) {
+            roundStartTime = Date.now();
+        }
+
+        // Initialize votes structure if it doesn't exist
+        if (!votes) votes = {};
         if (!votes[round]) votes[round] = {};
         if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
         if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = 0;
@@ -104,9 +125,13 @@ async function saveBracketState(state) {
         // Increment vote count
         votes[round][pairIndex][name]++;
 
-        await saveBracketState({...state, votes});
-        displayCurrentPair();
+        await saveBracketState({...state, votes, roundStartTime});
+        await displayCurrentPair();
+    } catch (error) {
+        console.error('Error in vote function:', error);
+        alert('An error occurred while voting. Please try again.');
     }
+}
 
     async function showResults(names, votes, round) {
         const results = names.map((name, index) => {
