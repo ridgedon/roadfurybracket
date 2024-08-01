@@ -59,102 +59,98 @@ function getVotingPeriod(round) {
         }
     }
 
-    async function displayCurrentPair() {
-        try {
-            const state = await loadBracketState();
-            if (!state) {
-                bracketContainer.innerHTML = '<p>Error loading bracket state. Please refresh the page.</p>';
-                return;
-            }
-
-            let { names, round, pairIndex, roundStartTime, votes, isComplete } = state;
-
-            bracketContainer.innerHTML = '';
-
-            if (isComplete) {
-                displayFinalWinner(names[0]);
-                return;
-            }
-
-            const roundIndicator = document.createElement('h2');
-            roundIndicator.textContent = `Round ${round}`;
-            bracketContainer.appendChild(roundIndicator);
-
-            const timeElement = document.createElement('p');
-            timeElement.id = 'time-remaining';
-            if (roundStartTime) {
-                updateTimeRemaining(roundStartTime, round);
-            } else {
-                timeElement.textContent = 'Waiting for first vote to start the timer...';
-            }
-            bracketContainer.appendChild(timeElement);
-
-            if (pairIndex >= names.length) {
-                await showResults(names, votes, round);
-                return;
-            }
-
-            const name1 = names[pairIndex];
-            const name2 = pairIndex + 1 < names.length ? names[pairIndex + 1] : 'Bye';
-
-            const pairDiv = document.createElement('div');
-            pairDiv.className = 'bracket-pair';
-            pairDiv.innerHTML = `
-                <div class="bracket-item">
-                    <p>${name1}</p>
-                    <button onclick="vote('${name1}')" id="vote-btn-1">Vote</button>
-                </div>
-                <div class="bracket-item">
-                    <p>${name2}</p>
-                    <button onclick="vote('${name2}')" id="vote-btn-2" ${name2 === 'Bye' ? 'disabled' : ''}>Vote</button>
-                </div>
-            `;
-
-            bracketContainer.appendChild(pairDiv);
-
-            const adminMessage = document.getElementById('admin-message');
-            if (adminMessage) adminMessage.textContent = '';
-        } catch (error) {
-            console.error('Error in displayCurrentPair:', error);
-            bracketContainer.innerHTML = '<p>An error occurred. Please refresh the page.</p>';
+async function displayCurrentPair() {
+    try {
+        const state = await loadBracketState();
+        if (!state) {
+            bracketContainer.innerHTML = '<p>Error loading bracket state. Please refresh the page.</p>';
+            return;
         }
+
+        let { names, round, pairIndex, roundStartTime, votes, isComplete } = state;
+
+        bracketContainer.innerHTML = '';
+
+        if (isComplete) {
+            displayFinalWinner(names[0]);
+            return;
+        }
+
+        const roundIndicator = document.createElement('h2');
+        roundIndicator.textContent = `Round ${round}`;
+        bracketContainer.appendChild(roundIndicator);
+
+        const timeElement = document.createElement('p');
+        timeElement.id = 'time-remaining';
+        if (roundStartTime) {
+            updateTimeRemaining(roundStartTime, round);
+        } else {
+            timeElement.textContent = 'Waiting for first vote to start the timer...';
+        }
+        bracketContainer.appendChild(timeElement);
+
+        if (pairIndex >= names.length) {
+            await showResults(names, votes, round);
+            return;
+        }
+
+        const name1 = names[pairIndex];
+        const name2 = pairIndex + 1 < names.length ? names[pairIndex + 1] : 'Bye';
+
+        const votes1 = (votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name1]) || 0;
+        const votes2 = (votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name2]) || 0;
+
+        const pairDiv = document.createElement('div');
+        pairDiv.className = 'bracket-pair';
+        pairDiv.innerHTML = `
+            <div class="bracket-item">
+                <p>${name1} (Votes: ${votes1})</p>
+                <button onclick="vote('${name1}')" id="vote-btn-1">Vote</button>
+            </div>
+            <div class="bracket-item">
+                <p>${name2} (Votes: ${votes2})</p>
+                <button onclick="vote('${name2}')" id="vote-btn-2" ${name2 === 'Bye' ? 'disabled' : ''}>Vote</button>
+            </div>
+        `;
+
+        bracketContainer.appendChild(pairDiv);
+
+        const adminMessage = document.getElementById('admin-message');
+        if (adminMessage) adminMessage.textContent = '';
+    } catch (error) {
+        console.error('Error in displayCurrentPair:', error);
+        bracketContainer.innerHTML = '<p>An error occurred. Please refresh the page.</p>';
     }
+}
 
     async function vote(name) {
-        try {
-            const state = await loadBracketState();
-            if (!state) {
-                console.error('Failed to load state');
-                return;
-            }
-
-            let { votes, round, pairIndex, roundStartTime, names } = state;
-            
-            if (!roundStartTime) {
-                roundStartTime = Date.now();
-            }
-
-            if (!votes) votes = {};
-            if (!votes[round]) votes[round] = {};
-            if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
-            if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = 0;
-
-            votes[round][pairIndex][name]++;
-
-            pairIndex += 2;
-
-            if (pairIndex >= names.length) {
-                await saveBracketState({...state, votes, roundStartTime, pairIndex});
-                await showResults(names, votes, round);
-            } else {
-                await saveBracketState({...state, votes, roundStartTime, pairIndex});
-                await displayCurrentPair();
-            }
-        } catch (error) {
-            console.error('Error in vote function:', error);
-            alert('An error occurred while voting. Please try again.');
+    try {
+        const state = await loadBracketState();
+        if (!state) {
+            console.error('Failed to load state');
+            return;
         }
+
+        let { votes, round, pairIndex, roundStartTime, names } = state;
+        
+        if (!roundStartTime) {
+            roundStartTime = Date.now();
+        }
+
+        if (!votes) votes = {};
+        if (!votes[round]) votes[round] = {};
+        if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
+        if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = 0;
+
+        votes[round][pairIndex][name]++;
+
+        await saveBracketState({...state, votes, roundStartTime});
+        await displayCurrentPair();
+    } catch (error) {
+        console.error('Error in vote function:', error);
+        alert('An error occurred while voting. Please try again.');
     }
+}
 
     async function showResults(names, votes, round) {
         const results = names.map((name, index) => {
