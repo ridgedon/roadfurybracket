@@ -11,73 +11,87 @@ document.addEventListener('DOMContentLoaded', () => {
     
 let isAdminLoggedIn = false;
 
+function displayVotes(votes) {
+    const voteDisplay = document.createElement('div');
+    voteDisplay.innerHTML = '<h3>Current Votes:</h3>';
+    for (const [pairIndex, pairVotes] of Object.entries(votes)) {
+        voteDisplay.innerHTML += `Pair ${pairIndex}: ${pairVotes[0]} - ${pairVotes[1]}<br>`;
+    }
+    bracketContainer.appendChild(voteDisplay);
+}
+
     function debugLog(message) {
         console.log(message);
         debugElement.innerHTML += `<p>${message}</p>`;
     }
 
-    async function saveBracketState(state) {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                },
-                body: JSON.stringify(state)
-            });
-            if (!response.ok) throw new Error('Failed to save state');
-            debugLog('State saved successfully');
-        } catch (error) {
-            debugLog(`Error saving state: ${error.message}`);
-        }
+   async function saveBracketState(state) {
+    try {
+        console.log('Attempting to save state:', state);
+        const response = await fetch(JSONBIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify(state)
+        });
+        if (!response.ok) throw new Error('Failed to save state');
+        const savedData = await response.json();
+        console.log('State saved successfully:', savedData);
+        debugLog('State saved successfully');
+    } catch (error) {
+        console.error('Error saving state:', error);
+        debugLog(`Error saving state: ${error.message}`);
     }
+}
 
-    async function loadBracketState() {
-        try {
-            const response = await fetch(JSONBIN_URL, {
-                headers: { 'X-Master-Key': JSONBIN_API_KEY }
-            });
-            if (!response.ok) throw new Error('Failed to load state');
-            const data = await response.json();
-            debugLog('State loaded successfully');
-            return data.record;
-        } catch (error) {
-            debugLog(`Error loading state: ${error.message}`);
-            return null;
-        }
+async function loadBracketState() {
+    try {
+        console.log('Attempting to load state');
+        const response = await fetch(JSONBIN_URL, {
+            headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        });
+        if (!response.ok) throw new Error('Failed to load state');
+        const data = await response.json();
+        console.log('State loaded successfully:', data.record);
+        debugLog('State loaded successfully');
+        return data.record;
+    } catch (error) {
+        console.error('Error loading state:', error);
+        debugLog(`Error loading state: ${error.message}`);
+        return null;
     }
+}
 
     async function displayCurrentPair() {
-        debugLog('Displaying current pair');
-        const state = await loadBracketState();
-        if (!state) {
-            debugLog('No state found, initializing bracket');
-            await initializeBracket();
-            return;
-        }
+    debugLog('Displaying current pair');
+    const state = await loadBracketState();
+    if (!state) {
+        debugLog('No state found, initializing bracket');
+        await initializeBracket();
+        return;
+    }
 
-        const { names, currentPair, round } = state;
+    const { names, currentPair, round, votes } = state;
 
-        bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
+    bracketContainer.innerHTML = `<h2>Round ${round}</h2>`;
 
-        if (currentPair >= names.length) {
-            bracketContainer.innerHTML += '<h3>Round Complete</h3>';
-            if (names.length > 1) {
-                if (isAdminLoggedIn) {
-                    const nextRoundButton = document.createElement('button');
-                    nextRoundButton.textContent = 'Start Next Round';
-                    nextRoundButton.onclick = startNextRound;
-                    bracketContainer.appendChild(nextRoundButton);
-                } else {
-                    bracketContainer.innerHTML += '<p>Waiting for admin to start next round.</p>';
-                }
+    if (currentPair >= names.length) {
+        bracketContainer.innerHTML += '<h3>Round Complete</h3>';
+        if (names.length > 1) {
+            if (isAdminLoggedIn) {
+                const nextRoundButton = document.createElement('button');
+                nextRoundButton.textContent = 'Start Next Round';
+                nextRoundButton.onclick = startNextRound;
+                bracketContainer.appendChild(nextRoundButton);
             } else {
-                bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
+                bracketContainer.innerHTML += '<p>Waiting for admin to start next round.</p>';
             }
-            return;
+        } else {
+            bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
         }
-
+    } else {
         const name1 = names[currentPair];
         const name2 = names[currentPair + 1] || 'Bye';
 
@@ -90,16 +104,24 @@ let isAdminLoggedIn = false;
         debugLog(`Displayed pair: ${name1} vs ${name2}`);
     }
 
+    displayVotes(votes || {});
+}
+
     async function vote(pairIndex, choice) {
-        debugLog(`Vote cast: Pair ${pairIndex}, Choice ${choice}`);
-        const state = await loadBracketState();
-        if (!state.votes) state.votes = {};
-        if (!state.votes[pairIndex]) state.votes[pairIndex] = [0, 0];
-        state.votes[pairIndex][choice]++;
-        state.currentPair = pairIndex + 2;
-        await saveBracketState(state);
-        displayCurrentPair();
+    debugLog(`Vote cast: Pair ${pairIndex}, Choice ${choice}`);
+    let state = await loadBracketState();
+    if (!state) {
+        console.error('Failed to load state for voting');
+        return;
     }
+    if (!state.votes) state.votes = {};
+    if (!state.votes[pairIndex]) state.votes[pairIndex] = [0, 0];
+    state.votes[pairIndex][choice]++;
+    state.currentPair = pairIndex + 2;
+    console.log('Updated state before saving:', state);
+    await saveBracketState(state);
+    await displayCurrentPair();
+}
 
     async function startNextRound() {
         if (!isAdminLoggedIn) {
