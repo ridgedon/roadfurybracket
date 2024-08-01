@@ -9,6 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_API_KEY = '$2a$10$9pH20SYWSZcFWI4ODBk4Hu6sSPsLkJ8r9tWoheET4cXb9dG2dQlE6';
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+if (!bracketContainer) console.error('Bracket container not found');
+    if (!adminPanel) console.error('Admin panel not found');
+    if (!adminLoginButton) console.error('Admin login button not found');
+    if (!adminPassword) console.error('Admin password input not found');
+    if (!adminMessage) console.error('Admin message element not found');
+    if (!initBracketButton) console.error('Initialize bracket button not found');
+    if (!debugElement) console.error('Debug element not found');
     
   let isAdminLoggedIn = true;
 
@@ -186,13 +194,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     adminLoginButton.addEventListener('click', () => {
-    console.log('Login attempt');
-    isAdminLoggedIn = true;
-    adminPanel.querySelector('#admin-login').style.display = 'none';
-    initBracketButton.style.display = 'inline-block';
-    adminMessage.textContent = 'Logged in as admin';
-    debugLog('Admin logged in');
-    displayCurrentPairs();
+    console.log('Login attempt with password:', adminPassword.value);
+    console.log('Expected password:', 'your-secret-password'); // Replace this with your actual password
+    if (adminPassword.value === 'your-secret-password') { // Replace with your actual password
+        console.log('Password match successful');
+        isAdminLoggedIn = true;
+        
+        // Check if admin login element exists before trying to hide it
+        const adminLoginElement = adminPanel.querySelector('#admin-login');
+        if (adminLoginElement) {
+            adminLoginElement.style.display = 'none';
+        } else {
+            console.error('Admin login element not found');
+        }
+        
+        // Check if init bracket button exists before showing it
+        if (initBracketButton) {
+            initBracketButton.style.display = 'inline-block';
+        } else {
+            console.error('Initialize bracket button not found');
+        }
+        
+        if (adminMessage) {
+            adminMessage.textContent = 'Logged in as admin';
+        } else {
+            console.error('Admin message element not found');
+        }
+        
+        debugLog('Admin logged in');
+        displayCurrentPairs(); // Refresh the display to show admin controls if needed
+    } else {
+        console.log('Password match failed');
+        if (adminMessage) {
+            adminMessage.textContent = 'Incorrect password. Please try again.';
+        } else {
+            console.error('Admin message element not found');
+        }
+        debugLog('Failed admin login attempt');
+    }
 });
 
     initBracketButton.addEventListener('click', initializeBracket);
