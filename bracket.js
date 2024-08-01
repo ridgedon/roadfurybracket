@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminLoginButton = document.getElementById('admin-login-button');
     const adminPassword = document.getElementById('admin-password');
     const adminMessage = document.getElementById('admin-message');
+    const initBracketButton = document.getElementById('init-bracket-button');
     const debugElement = document.getElementById('debug');
     const JSONBIN_API_KEY = '$2a$10$9pH20SYWSZcFWI4ODBk4Hu6sSPsLkJ8r9tWoheET4cXb9dG2dQlE6';
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
@@ -72,13 +73,12 @@ async function loadBracketState() {
 }
 
     async function displayCurrentPair() {
-    debugLog('Displaying current pair');
-    const state = await loadBracketState();
-    if (!state) {
-        debugLog('No state found, initializing bracket');
-        await initializeBracket();
-        return;
-    }
+        debugLog('Displaying current pair');
+        const state = await loadBracketState();
+        if (!state) {
+            bracketContainer.innerHTML = '<p>No bracket data found. Admin must initialize the bracket.</p>';
+            return;
+        }
 
     const { names, currentPair, round, votes } = state;
 
@@ -161,17 +161,13 @@ async function loadBracketState() {
 }
 
     async function initializeBracket() {
-    debugLog('Checking for existing bracket data');
-    const existingState = await loadBracketState();
-    if (existingState && existingState.names && existingState.names.length > 0) {
-        debugLog('Existing bracket data found, loading it');
-        await displayCurrentPair();
-        return;
-    }
-
-    debugLog('No existing data found, initializing new bracket');
-    const initialNames = [
-        "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
+        if (!isAdminLoggedIn) {
+            alert("You must be logged in as an admin to initialize the bracket.");
+            return;
+        }
+        debugLog('Initializing new bracket');
+        const initialNames = [
+            "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
         "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
         "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
         "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
@@ -184,22 +180,25 @@ async function loadBracketState() {
         "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
         "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
         "Fault: Ignition"
-    ];
-    await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
-    displayCurrentPair();
-}
+        ];
+        await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
+        displayCurrentPair();
+    }
+
     adminLoginButton.addEventListener('click', () => {
         if (adminPassword.value === 'your-secret-password') { // Replace with a secure password
             isAdminLoggedIn = true;
-            adminPanel.style.display = 'none';
+            adminPanel.querySelector('#admin-login').style.display = 'none';
+            initBracketButton.style.display = 'inline-block';
             adminMessage.textContent = 'Logged in as admin';
             debugLog('Admin logged in');
-            displayCurrentPair(); // Refresh the display to show admin controls if needed
         } else {
             adminMessage.textContent = 'Incorrect password. Please try again.';
             debugLog('Failed admin login attempt');
         }
     });
+
+    initBracketButton.addEventListener('click', initializeBracket);
 
     debugLog('Script loaded, attempting to display current pair');
     displayCurrentPair();
