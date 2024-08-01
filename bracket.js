@@ -153,67 +153,67 @@ async function displayCurrentPair() {
 }
 
     async function showResults(names, votes, round) {
-        const results = names.map((name, index) => {
-            const pairIndex = Math.floor(index / 2) * 2;
-            const voteCount = (votes && votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name]) || 0;
-            return { name, votes: voteCount };
-        });
+    const results = names.map((name, index) => {
+        const pairIndex = Math.floor(index / 2) * 2;
+        const voteCount = (votes && votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name]) || 0;
+        return { name, votes: voteCount };
+    });
 
-        bracketContainer.innerHTML = `
-            <h2>Round ${round} Results</h2>
-            <ul>
-                ${results.map(result => `<li>${result.name}: ${result.votes} votes</li>`).join('')}
-            </ul>
-            <p>Waiting for timer to end or manual start of next round.</p>
-        `;
+    bracketContainer.innerHTML = `
+        <h2>Round ${round} Results</h2>
+        <ul>
+            ${results.map(result => `<li>${result.name}: ${result.votes} votes</li>`).join('')}
+        </ul>
+        <p>Waiting for timer to end or manual start of next round.</p>
+    `;
 
-        const adminControls = document.getElementById('admin-controls');
-        if (adminControls && adminControls.style.display !== 'none') {
-            const nextRoundButton = document.createElement('button');
-            nextRoundButton.textContent = 'Start Next Round';
-            nextRoundButton.onclick = startNextRound;
-            bracketContainer.appendChild(nextRoundButton);
-        }
+    const adminControls = document.getElementById('admin-controls');
+    if (adminControls && adminControls.style.display !== 'none') {
+        const nextRoundButton = document.createElement('button');
+        nextRoundButton.textContent = 'Start Next Round';
+        nextRoundButton.onclick = startNextRound;
+        bracketContainer.appendChild(nextRoundButton);
     }
+}
 
     async function startNextRound() {
-        const state = await loadBracketState();
-        if (!state) return;
+    const state = await loadBracketState();
+    if (!state) return;
 
-        let { names, round, votes } = state;
+    let { names, round, votes } = state;
 
-        const winners = [];
-        for (let i = 0; i < names.length; i += 2) {
-            const name1 = names[i];
-            const name2 = i + 1 < names.length ? names[i + 1] : null;
-            const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
-            const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
-            winners.push(votes1 >= votes2 ? name1 : name2);
-        }
-
-        if (winners.length === 1) {
-            await saveBracketState({
-                ...state,
-                names: winners,
-                round: round + 1,
-                pairIndex: 0,
-                roundStartTime: null,
-                votes: {...votes, [round + 1]: {}},
-                isComplete: true
-            });
-            displayFinalWinner(winners[0]);
-        } else {
-            await saveBracketState({
-                ...state,
-                names: winners,
-                round: round + 1,
-                pairIndex: 0,
-                roundStartTime: null,
-                votes: {...votes, [round + 1]: {}}
-            });
-            displayCurrentPair();
-        }
+    const winners = [];
+    for (let i = 0; i < names.length; i += 2) {
+        const name1 = names[i];
+        const name2 = i + 1 < names.length ? names[i + 1] : null;
+        const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
+        const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
+        winners.push(votes1 >= votes2 ? name1 : name2);
     }
+
+    if (winners.length === 1) {
+        await saveBracketState({
+            ...state,
+            names: winners,
+            round: round + 1,
+            pairIndex: 0,
+            roundStartTime: null,
+            votes: {...votes, [round + 1]: {}},
+            isComplete: true
+        });
+        displayFinalWinner(winners[0]);
+    } else {
+        await saveBracketState({
+            ...state,
+            names: winners,
+            round: round + 1,
+            pairIndex: 0,
+            roundStartTime: null,
+            votes: {...votes, [round + 1]: {}}
+        });
+        displayCurrentPair();
+    }
+}
 
     function displayFinalWinner(winner) {
         bracketContainer.innerHTML = `
