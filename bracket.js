@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
     const VOTING_PERIOD = 5 * 24 * 60 * 60 * 1000;
 
-    async function saveBracketState(state) {
+async function saveBracketState(state) {
         try {
             const response = await fetch(JSONBIN_URL, {
                 method: 'PUT',
@@ -41,9 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const state = await loadBracketState();
         if (!state) return;
 
-        let { names, round, pairIndex, roundStartTime, votes } = state;
+        let { names, round, pairIndex, roundStartTime, votes, isComplete } = state;
 
         bracketContainer.innerHTML = '';
+
+        if (isComplete) {
+            displayFinalWinner(names[0]);
+            return;
+        }
 
         // Display round number
         const roundIndicator = document.createElement('h2');
@@ -60,11 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pairIndex >= names.length) {
             // Show results and start next round
             await showResults(names, votes, round);
-            return;
-        }
-
-        if (names.length === 1) {
-            bracketContainer.innerHTML += `<h2>Winner: ${names[0]}</h2>`;
             return;
         }
 
@@ -85,12 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         bracketContainer.appendChild(pairDiv);
-        
-       // Show admin panel
-    document.getElementById('admin-panel').style.display = 'block';
-    
-    // Reset admin message
-    document.getElementById('admin-message').textContent = '';
+
+        // Reset admin message
+        document.getElementById('admin-message').textContent = '';
     }
 
     async function vote(name) {
@@ -128,100 +125,86 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startNextRound() {
-    const state = await loadBracketState();
-    if (!state) return;
+        const state = await loadBracketState();
+        if (!state) return;
 
-    let { names, round, votes } = state;
+        let { names, round, votes } = state;
 
-    // Determine winners of this round
-    const winners = [];
-    for (let i = 0; i < names.length; i += 2) {
-        const name1 = names[i];
-        const name2 = i + 1 < names.length ? names[i + 1] : null;
-        const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
-        const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
-        winners.push(votes1 >= votes2 ? name1 : name2);
+        // Determine winners of this round
+        const winners = [];
+        for (let i = 0; i < names.length; i += 2) {
+            const name1 = names[i];
+            const name2 = i + 1 < names.length ? names[i + 1] : null;
+            const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
+            const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
+            winners.push(votes1 >= votes2 ? name1 : name2);
+        }
+
+        if (winners.length === 1) {
+            // We have a final winner
+            await saveBracketState({
+                ...state,
+                names: winners,
+                round: round + 1,
+                pairIndex: 0,
+                roundStartTime: Date.now(),
+                votes: {...votes, [round + 1]: {}},
+                isComplete: true
+            });
+            displayFinalWinner(winners[0]);
+        } else {
+            // Start new round
+            await saveBracketState({
+                ...state,
+                names: winners,
+                round: round + 1,
+                pairIndex: 0,
+                roundStartTime: Date.now(),
+                votes: {...votes, [round + 1]: {}}
+            });
+            displayCurrentPair();
+        }
     }
 
-    if (winners.length === 1) {
-        // We have a final winner
-        await saveBracketState({
-            ...state,
-            names: winners,
-            round: round + 1,
-            pairIndex: 0,
-            roundStartTime: Date.now(),
-            votes: {...votes, [round + 1]: {}},
-            isComplete: true
-        });
-        displayFinalWinner(winners[0]);
-    } else {
-        // Start new round
-        await saveBracketState({
-            ...state,
-            names: winners,
-            round: round + 1,
-            pairIndex: 0,
-            roundStartTime: Date.now(),
-            votes: {...votes, [round + 1]: {}}
-        });
-        displayCurrentPair();
+    function displayFinalWinner(winner) {
+        bracketContainer.innerHTML = `
+            <h2>Final Winner</h2>
+            <p class="winner">${winner}</p>
+        `;
     }
-}
-
-function authenticateAdmin() {
-    const password = document.getElementById('admin-password').value;
-    if (password === 'admin') {
-        document.getElementById('admin-login').style.display = 'none';
-        document.getElementById('admin-controls').style.display = 'block';
-        document.getElementById('admin-message').textContent = 'Logged in successfully.';
-    } else {
-        document.getElementById('admin-message').textContent = 'Incorrect password. Please try again.';
-    }
-}
-
-async function manualNextRound() {
-    const state = await loadBracketState();
-    if (state.isComplete) {
-        document.getElementById('admin-message').textContent = 'The bracket is complete. No more rounds to start.';
-        document.getElementById('next-round-button').disabled = true;
-        return;
-    }
-    startNextRound();
-    document.getElementById('admin-message').textContent = 'Starting next round...';
-}
-
-async function manualNextRound() {
-    const state = await loadBracketState();
-    if (state.isComplete) {
-        alert('The bracket is complete. No more rounds to start.');
-        return;
-    }
-    startNextRound();
-}
-
-function displayFinalWinner(winner) {
-    bracketContainer.innerHTML = `
-        <h2>Final Winner</h2>
-        <p class="winner">${winner}</p>
-    `;
-}
 
     function updateTimeRemaining(startTime) {
         const now = Date.now();
         const elapsed = now - startTime;
         const remaining = Math.max(0, VOTING_PERIOD - elapsed);
         
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = ((remaining % 60000) / 1000).toFixed(0);
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
         
         document.getElementById('time-remaining').textContent = 
-            `Time remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            `Time remaining: ${days} days, ${hours} hours, ${minutes} minutes`;
 
         if (remaining > 0) {
-            setTimeout(() => updateTimeRemaining(startTime), 1000);
+            // Update every minute instead of every second
+            setTimeout(() => updateTimeRemaining(startTime), 60000);
         } else {
             startNextRound();
+        }
+    }
+
+    async function checkRoundEnd() {
+        const state = await loadBracketState();
+        if (!state) return;
+
+        const { roundStartTime } = state;
+        const now = Date.now();
+        const elapsed = now - roundStartTime;
+
+        if (elapsed >= VOTING_PERIOD) {
+            startNextRound();
+        } else {
+            displayCurrentPair();
         }
     }
 
@@ -232,18 +215,18 @@ function displayFinalWinner(winner) {
             // If no state exists, initialize with all names
             const initialNames = [
                 "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
-    "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
-    "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
-    "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
-    "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
-    "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
-    "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
-    "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
-    "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
-    "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
-    "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
-    "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
-    "Fault: Ignition"
+                "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
+                "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
+                "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
+                "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
+                "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
+                "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
+                "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
+                "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
+                "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
+                "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
+                "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
+                "Fault: Ignition"
             ];
             await saveBracketState({
                 names: initialNames,
@@ -253,27 +236,45 @@ function displayFinalWinner(winner) {
                 votes: {}
             });
         }
-        displayCurrentPair();
+        checkRoundEnd();
     }
 
+    // Admin panel functionality
+    const adminPanel = document.getElementById('admin-panel');
+    const adminLoginButton = document.getElementById('admin-login-button');
+    const adminPassword = document.getElementById('admin-password');
+    const adminControls = document.getElementById('admin-controls');
+    const nextRoundButton = document.getElementById('next-round-button');
+    const adminMessage = document.getElementById('admin-message');
+
+    adminLoginButton.addEventListener('click', () => {
+        if (adminPassword.value === 'admin') { // Replace with a secure password
+            adminPanel.querySelector('#admin-login').style.display = 'none';
+            adminControls.style.display = 'block';
+            adminMessage.textContent = 'Logged in successfully.';
+        } else {
+            adminMessage.textContent = 'Incorrect password. Please try again.';
+        }
+    });
+
+    nextRoundButton.addEventListener('click', async () => {
+        const state = await loadBracketState();
+        if (state.isComplete) {
+            adminMessage.textContent = 'The bracket is complete. No more rounds to start.';
+            nextRoundButton.disabled = true;
+        } else {
+            await startNextRound();
+            adminMessage.textContent = 'Starting next round...';
+            displayCurrentPair();
+        }
+    });
+
+    // Show admin panel
+    adminPanel.style.display = 'block';
+
+    // Initialize the bracket
     initializeBracket();
-    
-    async function checkRoundEnd() {
-    const state = await loadBracketState();
-    if (!state) return;
 
-    const { roundStartTime } = state;
-    const now = Date.now();
-    const elapsed = now - roundStartTime;
-
-    if (elapsed >= VOTING_PERIOD) {
-        startNextRound();
-    } else {
-        displayCurrentPair();
-    }
-}
-
-    // Make functions global so they can be called from HTML
+    // Make vote function global so it can be called from HTML
     window.vote = vote;
-    window.startNextRound = startNextRound;
 });

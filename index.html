@@ -13,14 +13,14 @@
     <main id="bracket-container">
         <!-- Bracket pairs will be dynamically inserted here -->
     </main>
-    <div id="admin-panel" class="admin-panel">
-    <h3>Admin Controls pls dont touch guys it could break it</h3>
+    <div id="admin-panel" class="admin-panel" style="display: none;">
+    <h3>Admin Controls</h3>
     <div id="admin-login" class="admin-section">
         <input type="password" id="admin-password" placeholder="Enter admin password">
-        <button onclick="authenticateAdmin()">Login</button>
+        <button id="admin-login-button">Login</button>
     </div>
     <div id="admin-controls" class="admin-section" style="display: none;">
-        <button id="next-round-button" onclick="manualNextRound()">Start Next Round</button>
+        <button id="next-round-button">Start Next Round</button>
         <p id="admin-message"></p>
     </div>
 </div>
