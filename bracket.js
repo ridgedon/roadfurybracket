@@ -120,34 +120,44 @@ function getVotingPeriod(round) {
     }
 
     async function vote(name) {
-        try {
-            const state = await loadBracketState();
-            if (!state) {
-                console.error('Failed to load state');
-                return;
-            }
-
-            let { votes, round, pairIndex, roundStartTime, names } = state;
-            
-            if (!roundStartTime) {
-                roundStartTime = Date.now();
-            }
-
-            if (!votes) votes = {};
-            if (!votes[round]) votes[round] = {};
-            if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
-            if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = {};
-
-            const userId = getUserId();
-            votes[round][pairIndex][name][userId] = true;
-
-            await saveBracketState({...state, votes, roundStartTime});
-            await displayCurrentPair();
-        } catch (error) {
-            console.error('Error in vote function:', error);
-            alert('An error occurred while voting. Please try again.');
+    try {
+        const state = await loadBracketState();
+        if (!state) {
+            console.error('Failed to load state');
+            return;
         }
+
+        let { votes, round, pairIndex, roundStartTime, names } = state;
+        
+        if (!roundStartTime) {
+            roundStartTime = Date.now();
+        }
+
+        if (!votes) votes = {};
+        if (!votes[round]) votes[round] = {};
+        if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
+        if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = {};
+
+        const userId = getUserId();
+        votes[round][pairIndex][name][userId] = true;
+
+        // Advance to the next pair
+        pairIndex += 2;
+
+        // If we've reached the end of the names, show results
+        if (pairIndex >= names.length) {
+            await saveBracketState({...state, votes, roundStartTime, pairIndex});
+            await showResults(names, votes, round);
+        } else {
+            // Otherwise, save state and display the next pair
+            await saveBracketState({...state, votes, roundStartTime, pairIndex});
+            await displayCurrentPair();
+        }
+    } catch (error) {
+        console.error('Error in vote function:', error);
+        alert('An error occurred while voting. Please try again.');
     }
+}
 
     async function showResults(names, votes, round) {
         const results = names.map((name, index) => {
