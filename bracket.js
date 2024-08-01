@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_API_KEY = '$2a$10$9pH20SYWSZcFWI4ODBk4Hu6sSPsLkJ8r9tWoheET4cXb9dG2dQlE6';
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+    const VOTING_PERIOD = 5 * 24 * 60 * 60 * 1000;
 
     async function saveBracketState(state) {
         try {
@@ -40,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const state = await loadBracketState();
         if (!state) return;
 
-        let { names, round, pairIndex } = state;
+        let { names, round, pairIndex, roundStartTime, votes } = state;
 
         bracketContainer.innerHTML = '';
 
@@ -49,9 +50,16 @@ document.addEventListener('DOMContentLoaded', () => {
         roundIndicator.textContent = `Round ${round}`;
         bracketContainer.appendChild(roundIndicator);
 
+        // Display time remaining
+        const timeRemaining = document.createElement('p');
+        timeRemaining.id = 'time-remaining';
+        bracketContainer.appendChild(timeRemaining);
+
+        updateTimeRemaining(roundStartTime);
+
         if (pairIndex >= names.length) {
             // Show results and start next round
-            await showResults(names, round);
+            await showResults(names, votes, round);
             return;
         }
 
@@ -80,26 +88,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function vote(name) {
-        // Disable buttons
-        document.getElementById('vote-btn-1').disabled = true;
-        document.getElementById('vote-btn-2').disabled = true;
-
         const state = await loadBracketState();
         if (!state) return;
 
-        let { names, round, pairIndex } = state;
-        names.splice(pairIndex, 2, name);
-        pairIndex += 2;
+        let { votes, round, pairIndex } = state;
+        
+        // Initialize votes for this pair if they don't exist
+        if (!votes[round]) votes[round] = {};
+        if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
+        if (!votes[round][pairIndex][name]) votes[round][pairIndex][name] = 0;
 
-        await saveBracketState({ names, round, pairIndex });
+        // Increment vote count
+        votes[round][pairIndex][name]++;
+
+        await saveBracketState({...state, votes});
         displayCurrentPair();
     }
 
-    async function showResults(names, round) {
+    async function showResults(names, votes, round) {
+        const results = names.map((name, index) => {
+            const pairIndex = Math.floor(index / 2) * 2;
+            const voteCount = (votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name]) || 0;
+            return { name, votes: voteCount };
+        });
+
         bracketContainer.innerHTML = `
             <h2>Round ${round} Results</h2>
             <ul>
-                ${names.map(name => `<li>${name}</li>`).join('')}
+                ${results.map(result => `<li>${result.name}: ${result.votes} votes</li>`).join('')}
             </ul>
             <button onclick="startNextRound()">Start Next Round</button>
         `;
@@ -109,13 +125,94 @@ document.addEventListener('DOMContentLoaded', () => {
         const state = await loadBracketState();
         if (!state) return;
 
-        let { names, round } = state;
-        await saveBracketState({ names, round: round + 1, pairIndex: 0 });
+        let { names, round, votes } = state;
+
+        // Determine winners of this round
+        const winners = [];
+        for (let i = 0; i < names.length; i += 2) {
+            const name1 = names[i];
+            const name2 = i + 1 < names.length ? names[i + 1] : null;
+            const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
+            const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
+            winners.push(votes1 >= votes2 ? name1 : name2);
+        }
+
+        // Start new round
+        await saveBracketState({
+            names: winners,
+            round: round + 1,
+            pairIndex: 0,
+            roundStartTime: Date.now(),
+            votes: {...votes, [round + 1]: {}}
+        });
         displayCurrentPair();
     }
 
+    function updateTimeRemaining(startTime) {
+        const now = Date.now();
+        const elapsed = now - startTime;
+        const remaining = Math.max(0, VOTING_PERIOD - elapsed);
+        
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = ((remaining % 60000) / 1000).toFixed(0);
+        
+        document.getElementById('time-remaining').textContent = 
+            `Time remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+        if (remaining > 0) {
+            setTimeout(() => updateTimeRemaining(startTime), 1000);
+        } else {
+            startNextRound();
+        }
+    }
+
     // Initialize the bracket
-    displayCurrentPair();
+    async function initializeBracket() {
+        const state = await loadBracketState();
+        if (!state || !state.names) {
+            // If no state exists, initialize with all names
+            const initialNames = [
+                "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
+    "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
+    "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
+    "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
+    "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
+    "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
+    "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
+    "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
+    "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
+    "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
+    "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
+    "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
+    "Fault: Ignition"
+            ];
+            await saveBracketState({
+                names: initialNames,
+                round: 1,
+                pairIndex: 0,
+                roundStartTime: Date.now(),
+                votes: {}
+            });
+        }
+        displayCurrentPair();
+    }
+
+    initializeBracket();
+    
+    async function checkRoundEnd() {
+    const state = await loadBracketState();
+    if (!state) return;
+
+    const { roundStartTime } = state;
+    const now = Date.now();
+    const elapsed = now - roundStartTime;
+
+    if (elapsed >= VOTING_PERIOD) {
+        startNextRound();
+    } else {
+        displayCurrentPair();
+    }
+}
 
     // Make functions global so they can be called from HTML
     window.vote = vote;
