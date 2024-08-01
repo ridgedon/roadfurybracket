@@ -85,6 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         bracketContainer.appendChild(pairDiv);
+        
+        // Show admin controls
+    document.getElementById('admin-controls').style.display = 'block';
     }
 
     async function vote(name) {
@@ -122,23 +125,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startNextRound() {
-        const state = await loadBracketState();
-        if (!state) return;
+    const state = await loadBracketState();
+    if (!state) return;
 
-        let { names, round, votes } = state;
+    let { names, round, votes } = state;
 
-        // Determine winners of this round
-        const winners = [];
-        for (let i = 0; i < names.length; i += 2) {
-            const name1 = names[i];
-            const name2 = i + 1 < names.length ? names[i + 1] : null;
-            const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
-            const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
-            winners.push(votes1 >= votes2 ? name1 : name2);
-        }
+    // Determine winners of this round
+    const winners = [];
+    for (let i = 0; i < names.length; i += 2) {
+        const name1 = names[i];
+        const name2 = i + 1 < names.length ? names[i + 1] : null;
+        const votes1 = (votes[round] && votes[round][i] && votes[round][i][name1]) || 0;
+        const votes2 = name2 ? (votes[round] && votes[round][i] && votes[round][i][name2]) || 0 : -1;
+        winners.push(votes1 >= votes2 ? name1 : name2);
+    }
 
+    if (winners.length === 1) {
+        // We have a final winner
+        await saveBracketState({
+            ...state,
+            names: winners,
+            round: round + 1,
+            pairIndex: 0,
+            roundStartTime: Date.now(),
+            votes: {...votes, [round + 1]: {}},
+            isComplete: true
+        });
+        displayFinalWinner(winners[0]);
+    } else {
         // Start new round
         await saveBracketState({
+            ...state,
             names: winners,
             round: round + 1,
             pairIndex: 0,
@@ -147,6 +164,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         displayCurrentPair();
     }
+}
+
+function authenticateAdmin() {
+    const password = document.getElementById('admin-password').value;
+    if (password === 'admin') { 
+        document.getElementById('next-round-button').style.display = 'block';
+    } else {
+        alert('Incorrect password');
+    }
+}
+
+async function manualNextRound() {
+    const state = await loadBracketState();
+    if (state.isComplete) {
+        alert('The bracket is complete. No more rounds to start.');
+        return;
+    }
+    startNextRound();
+}
+
+function displayFinalWinner(winner) {
+    bracketContainer.innerHTML = `
+        <h2>Final Winner</h2>
+        <p class="winner">${winner}</p>
+    `;
+}
 
     function updateTimeRemaining(startTime) {
         const now = Date.now();
