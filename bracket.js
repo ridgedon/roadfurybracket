@@ -11,11 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
 let isAdminLoggedIn = false;
 
-function displayVotes(votes) {
+function displayVotes(votes, currentRound) {
     const voteDisplay = document.createElement('div');
-    voteDisplay.innerHTML = '<h3>Current Votes:</h3>';
-    for (const [pairIndex, pairVotes] of Object.entries(votes)) {
-        voteDisplay.innerHTML += `Pair ${pairIndex}: ${pairVotes[0]} - ${pairVotes[1]}<br>`;
+    voteDisplay.innerHTML = '<h3>All Votes:</h3>';
+    for (const [key, pairVotes] of Object.entries(votes)) {
+        const round = Math.floor(key / 1000) + 1;
+        const pairIndex = key % 1000;
+        voteDisplay.innerHTML += `Round ${round}, Pair ${pairIndex}: ${pairVotes[0]} - ${pairVotes[1]}<br>`;
     }
     bracketContainer.appendChild(voteDisplay);
 }
@@ -104,7 +106,8 @@ async function loadBracketState() {
         debugLog(`Displayed pair: ${name1} vs ${name2}`);
     }
 
-    displayVotes(votes || {});
+        displayVotes(votes || {}, round);
+
 }
 
     async function vote(pairIndex, choice) {
@@ -114,9 +117,9 @@ async function loadBracketState() {
         console.error('Failed to load state for voting');
         return;
     }
-    if (!state.votes) state.votes = {};
-    if (!state.votes[pairIndex]) state.votes[pairIndex] = [0, 0];
-    state.votes[pairIndex][choice]++;
+    const voteKey = (state.round - 1) * 1000 + pairIndex;
+    if (!state.votes[voteKey]) state.votes[voteKey] = [0, 0];
+    state.votes[voteKey][choice]++;
     state.currentPair = pairIndex + 2;
     console.log('Updated state before saving:', state);
     await saveBracketState(state);
@@ -124,24 +127,33 @@ async function loadBracketState() {
 }
 
     async function startNextRound() {
-        if (!isAdminLoggedIn) {
-            alert("You must be logged in as an admin to start the next round.");
-            return;
-        }
-        debugLog('Starting next round');
-        const state = await loadBracketState();
-        const winners = [];
-        for (let i = 0; i < state.names.length; i += 2) {
-            const votes = state.votes[i] || [0, 0];
-            winners.push(state.names[i + (votes[0] >= votes[1] ? 0 : 1)]);
-        }
-        state.names = winners;
-        state.currentPair = 0;
-        state.round++;
-        state.votes = {};
-        await saveBracketState(state);
-        displayCurrentPair();
+    if (!isAdminLoggedIn) {
+        alert("You must be logged in as an admin to start the next round.");
+        return;
     }
+    debugLog('Starting next round');
+    const state = await loadBracketState();
+    const winners = [];
+    for (let i = 0; i < state.names.length; i += 2) {
+        const votes = state.votes[i] || [0, 0];
+        winners.push(state.names[i + (votes[0] >= votes[1] ? 0 : 1)]);
+    }
+    
+    // Preserve votes from previous rounds
+    const newVotes = { ...state.votes };
+    // Add empty vote objects for the new round
+    for (let i = 0; i < winners.length; i += 2) {
+        newVotes[state.round * 1000 + i] = [0, 0];  // Use a large offset to avoid conflicts
+    }
+
+    await saveBracketState({
+        names: winners,
+        currentPair: 0,
+        round: state.round + 1,
+        votes: newVotes
+    });
+    displayCurrentPair();
+}
 
     async function initializeBracket() {
         debugLog('Initializing bracket');
