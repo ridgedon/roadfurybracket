@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
     
-  let isAdminLoggedIn = false;
+  let isAdminLoggedIn = true;
 
     function debugLog(message) {
         console.log(message);
