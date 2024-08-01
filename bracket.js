@@ -40,19 +40,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const state = await loadBracketState();
         if (!state) return;
 
-        const { names, round, pairIndex } = state;
+        let { names, round, pairIndex } = state;
 
         bracketContainer.innerHTML = '';
 
+        // Display round number
+        const roundIndicator = document.createElement('h2');
+        roundIndicator.textContent = `Round ${round}`;
+        bracketContainer.appendChild(roundIndicator);
+
         if (pairIndex >= names.length) {
-            // Start next round
-            await saveBracketState({ names, round: round + 1, pairIndex: 0 });
-            displayCurrentPair();
+            // Show results and start next round
+            await showResults(names, round);
             return;
         }
 
         if (names.length === 1) {
-            bracketContainer.innerHTML = `<h2>Winner: ${names[0]}</h2>`;
+            bracketContainer.innerHTML += `<h2>Winner: ${names[0]}</h2>`;
             return;
         }
 
@@ -64,11 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
         pairDiv.innerHTML = `
             <div class="bracket-item">
                 <p>${name1}</p>
-                <button onclick="vote('${name1}')">Vote</button>
+                <button onclick="vote('${name1}')" id="vote-btn-1">Vote</button>
             </div>
             <div class="bracket-item">
                 <p>${name2}</p>
-                <button onclick="vote('${name2}')" ${name2 === 'Bye' ? 'disabled' : ''}>Vote</button>
+                <button onclick="vote('${name2}')" id="vote-btn-2" ${name2 === 'Bye' ? 'disabled' : ''}>Vote</button>
             </div>
         `;
 
@@ -76,6 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function vote(name) {
+        // Disable buttons
+        document.getElementById('vote-btn-1').disabled = true;
+        document.getElementById('vote-btn-2').disabled = true;
+
         const state = await loadBracketState();
         if (!state) return;
 
@@ -87,9 +95,29 @@ document.addEventListener('DOMContentLoaded', () => {
         displayCurrentPair();
     }
 
+    async function showResults(names, round) {
+        bracketContainer.innerHTML = `
+            <h2>Round ${round} Results</h2>
+            <ul>
+                ${names.map(name => `<li>${name}</li>`).join('')}
+            </ul>
+            <button onclick="startNextRound()">Start Next Round</button>
+        `;
+    }
+
+    async function startNextRound() {
+        const state = await loadBracketState();
+        if (!state) return;
+
+        let { names, round } = state;
+        await saveBracketState({ names, round: round + 1, pairIndex: 0 });
+        displayCurrentPair();
+    }
+
     // Initialize the bracket
     displayCurrentPair();
 
-    // Make vote function global so it can be called from HTML
+    // Make functions global so they can be called from HTML
     window.vote = vote;
+    window.startNextRound = startNextRound;
 });
