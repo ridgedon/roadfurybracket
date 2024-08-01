@@ -4,7 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const JSONBIN_BIN_ID = '66aaf220ad19ca34f88fc6b9';
     const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
     
-async function saveBracketState(state) {
+let isAdminLoggedIn = false;
+
+    async function saveBracketState(state) {
         const response = await fetch(JSONBIN_URL, {
             method: 'PUT',
             headers: {
@@ -34,10 +36,14 @@ async function saveBracketState(state) {
         if (currentPair >= names.length) {
             bracketContainer.innerHTML += '<h3>Round Complete</h3>';
             if (names.length > 1) {
-                const nextRoundButton = document.createElement('button');
-                nextRoundButton.textContent = 'Start Next Round';
-                nextRoundButton.onclick = startNextRound;
-                bracketContainer.appendChild(nextRoundButton);
+                if (isAdminLoggedIn) {
+                    const nextRoundButton = document.createElement('button');
+                    nextRoundButton.textContent = 'Start Next Round';
+                    nextRoundButton.onclick = startNextRound;
+                    bracketContainer.appendChild(nextRoundButton);
+                } else {
+                    bracketContainer.innerHTML += '<p>Waiting for admin to start next round.</p>';
+                }
             } else {
                 bracketContainer.innerHTML += `<h3>Final Winner: ${names[0]}</h3>`;
             }
@@ -66,6 +72,10 @@ async function saveBracketState(state) {
     }
 
     async function startNextRound() {
+        if (!isAdminLoggedIn) {
+            alert("You must be logged in as an admin to start the next round.");
+            return;
+        }
         const state = await loadBracketState();
         const winners = [];
         for (let i = 0; i < state.names.length; i += 2) {
@@ -99,6 +109,17 @@ async function saveBracketState(state) {
         await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
         displayCurrentPair();
     }
+
+    adminLoginButton.addEventListener('click', () => {
+        if (adminPassword.value === 'your-secret-password') { // Replace with a secure password
+            isAdminLoggedIn = true;
+            adminPanel.style.display = 'none';
+            adminMessage.textContent = 'Logged in as admin';
+            displayCurrentPair(); // Refresh the display to show admin controls if needed
+        } else {
+            adminMessage.textContent = 'Incorrect password. Please try again.';
+        }
+    });
 
     initializeBracket();
 
