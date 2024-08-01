@@ -86,8 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         bracketContainer.appendChild(pairDiv);
         
-        // Show admin controls
-    document.getElementById('admin-controls').style.display = 'block';
+       // Show admin panel
+    document.getElementById('admin-panel').style.display = 'block';
+    
+    // Reset admin message
+    document.getElementById('admin-message').textContent = '';
     }
 
     async function vote(name) {
@@ -168,11 +171,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function authenticateAdmin() {
     const password = document.getElementById('admin-password').value;
-    if (password === 'admin') { 
-        document.getElementById('next-round-button').style.display = 'block';
+    if (password === 'admin') {
+        document.getElementById('admin-login').style.display = 'none';
+        document.getElementById('admin-controls').style.display = 'block';
+        document.getElementById('admin-message').textContent = 'Logged in successfully.';
     } else {
-        alert('Incorrect password');
+        document.getElementById('admin-message').textContent = 'Incorrect password. Please try again.';
     }
+}
+
+async function manualNextRound() {
+    const state = await loadBracketState();
+    if (state.isComplete) {
+        document.getElementById('admin-message').textContent = 'The bracket is complete. No more rounds to start.';
+        document.getElementById('next-round-button').disabled = true;
+        return;
+    }
+    startNextRound();
+    document.getElementById('admin-message').textContent = 'Starting next round...';
 }
 
 async function manualNextRound() {
