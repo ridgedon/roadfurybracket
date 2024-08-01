@@ -3,27 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Name Bracket</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Bracket Voting</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #debug { background-color: #f0f0f0; padding: 10px; margin-top: 20px; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Game Name Bracket</h1>
-    </header>
-    <main id="bracketContainer">
-        <!-- Bracket pairs will be dynamically inserted here -->
-    </main>
-    <div id="admin-panel" class="admin-panel" style="display: none;">
-    <h3>pls dont touch you will break it</h3>
-    <div id="admin-login" class="admin-section">
-        <input type="password" id="admin-password" placeholder="Enter admin password">
+    <h1>Bracket Voting</h1>
+    <div id="bracketContainer"></div>
+    <div id="admin-panel">
+        <input type="password" id="admin-password" placeholder="Admin Password">
         <button id="admin-login-button">Login</button>
-    </div>
-    <div id="admin-controls" class="admin-section" style="display: none;">
-        <button id="next-round-button">Start Next Round</button>
         <p id="admin-message"></p>
     </div>
-</div>
-    <script src="bracket.js"></script>
+    <div id="debug">Debug info will appear here</div>
+
+    <script src="your-script-file.js"></script>
 </body>
 </html>
