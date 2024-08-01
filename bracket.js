@@ -82,28 +82,26 @@ if (!bracketContainer) console.error('Bracket container not found');
     }
 
     const userProgress = getUserProgress(round);
-    const startIndex = userProgress * 4;
+    const startIndex = userProgress * 2; // Changed from 4 to 2
 
-    console.log('User progress:', userProgress, 'Start index:', startIndex); // Log progress and start index
+    console.log('User progress:', userProgress, 'Start index:', startIndex);
 
-    for (let i = startIndex; i < Math.min(startIndex + 4, names.length); i += 2) {
-        const name1 = names[i] || 'Unknown';
-        const name2 = (i + 1 < names.length ? names[i + 1] : 'Bye') || 'Unknown';
+    if (startIndex < names.length) {
+        const name1 = names[startIndex] || 'Unknown';
+        const name2 = (startIndex + 1 < names.length ? names[startIndex + 1] : 'Bye') || 'Unknown';
 
-        const votes1 = (votes[i] && votes[i][0]) || 0;
-        const votes2 = (votes[i] && votes[i][1]) || 0;
+        const votes1 = (votes[startIndex] && votes[startIndex][0]) || 0;
+        const votes2 = (votes[startIndex] && votes[startIndex][1]) || 0;
 
-        console.log(`Pair ${i/2 + 1}:`, name1, 'vs', name2); // Log each pair
+        console.log(`Pair:`, name1, 'vs', name2);
 
         bracketContainer.innerHTML += `
             <div class="pair">
-                <button onclick="vote(${i}, 0)">${name1} (${votes1} votes)</button>
-                <button onclick="vote(${i}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2} (${votes2} votes)</button>
+                <button onclick="vote(${startIndex}, 0)">${name1} (${votes1} votes)</button>
+                <button onclick="vote(${startIndex}, 1)" ${name2 === 'Bye' ? 'disabled' : ''}>${name2} (${votes2} votes)</button>
             </div>
         `;
-    }
-
-    if (userProgress * 4 >= names.length) {
+    } else {
         bracketContainer.innerHTML += '<h3>You have completed voting for this round.</h3>';
         if (isAdminLoggedIn) {
             const nextRoundButton = document.createElement('button');
