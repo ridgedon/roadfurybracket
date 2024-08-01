@@ -41,6 +41,15 @@ async function saveBracketState(state) {
             roundStartTime: data.record.roundStartTime,
             isComplete: data.record.isComplete || false
         };
+
+        // Ensure votes object is properly structured
+        if (!state.votes[state.round]) {
+            state.votes[state.round] = {};
+        }
+        if (!state.votes[state.round][state.pairIndex]) {
+            state.votes[state.round][state.pairIndex] = {};
+        }
+
         return state;
     } catch (error) {
         console.error('Error loading bracket state:', error);
@@ -116,7 +125,7 @@ async function saveBracketState(state) {
             roundStartTime = Date.now();
         }
 
-        // Initialize votes structure if it doesn't exist
+        // Ensure votes structure exists
         if (!votes) votes = {};
         if (!votes[round]) votes[round] = {};
         if (!votes[round][pairIndex]) votes[round][pairIndex] = {};
@@ -134,20 +143,20 @@ async function saveBracketState(state) {
 }
 
     async function showResults(names, votes, round) {
-        const results = names.map((name, index) => {
-            const pairIndex = Math.floor(index / 2) * 2;
-            const voteCount = (votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name]) || 0;
-            return { name, votes: voteCount };
-        });
+    const results = names.map((name, index) => {
+        const pairIndex = Math.floor(index / 2) * 2;
+        const voteCount = (votes && votes[round] && votes[round][pairIndex] && votes[round][pairIndex][name]) || 0;
+        return { name, votes: voteCount };
+    });
 
-        bracketContainer.innerHTML = `
-            <h2>Round ${round} Results</h2>
-            <ul>
-                ${results.map(result => `<li>${result.name}: ${result.votes} votes</li>`).join('')}
-            </ul>
-            <button onclick="startNextRound()">Start Next Round</button>
-        `;
-    }
+    bracketContainer.innerHTML = `
+        <h2>Round ${round} Results</h2>
+        <ul>
+            ${results.map(result => `<li>${result.name}: ${result.votes} votes</li>`).join('')}
+        </ul>
+        <button onclick="startNextRound()">Start Next Round</button>
+    `;
+}
 
     async function startNextRound() {
         const state = await loadBracketState();
@@ -235,8 +244,8 @@ async function saveBracketState(state) {
 
     // Initialize the bracket
     async function initializeBracket() {
-        const state = await loadBracketState();
-        if (!state || !state.names) {
+    const state = await loadBracketState();
+    if (!state || !state.names || state.names.length === 0) {
             // If no state exists, initialize with all names
             const initialNames = [
                 "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
@@ -254,14 +263,15 @@ async function saveBracketState(state) {
                 "Fault: Ignition"
             ];
             await saveBracketState({
-                names: initialNames,
-                round: 1,
-                pairIndex: 0,
-                roundStartTime: Date.now(),
-                votes: {}
-            });
-        }
-        checkRoundEnd();
+            names: initialNames,
+            round: 1,
+            pairIndex: 0,
+            roundStartTime: null,
+            votes: { 1: {} },
+            isComplete: false
+        });
+    }
+    checkRoundEnd();
     }
 
     // Admin panel functionality
