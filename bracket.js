@@ -126,7 +126,17 @@ let isAdminLoggedIn = false;
         const initialNames = [
             "Road Fury", "Steel Fleet", "Metal Brigade", "Iron Armada", "Steel Battalion",
             "Titanium Convoy", "Iron Legion", "Metal Vanguard", "Steel Caravan", "Iron Cavalry",
-            // ... (rest of the names)
+            "Metal Expedition", "Steel Phalanx", "Iron Squadron", "Metal Crusade", "Steel Vanguard",
+            "Iron March", "Still Earth", "Smog", "Core Runners", "Broken Earth",
+            "Meat Printers", "Meat Runners", "Dirtburn", "IronFront", "Union Fleet",
+            "Iron Union", "Ignition", "Ignite", "Fleet Strata", "Short List Weapon Name",
+            "Core Protocol", "On The Clock", "Slow Burn", "(Free)way", "Hardliners",
+            "Ignitieoun", "Capital Rd.", "Ten-Thousand Degrease", "Core Directive", "°vertime",
+            "No Man's Highway", "Dust Rats", "It's Just Business", "Compensation Co.", "Shuttered Skies",
+            "Atmospheric Conditions", "Controlled Desolation", "Gridlock", "Lockdown Protocol", "Diatomaceous Earth",
+            "Iron Stratum", "Continental Combustion", "Union Delta", "Road Quake", "Gabbros",
+            "Cold Ignition", "Synclinition", "Tectonic Transports", "Thrust Faults", "Thrust Fault: Ignition",
+            "Fault: Ignition"
         ];
         await saveBracketState({ names: initialNames, currentPair: 0, round: 1, votes: {} });
         displayCurrentPair();

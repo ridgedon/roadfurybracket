@@ -5,8 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bracket Voting</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        #debug { background-color: #f0f0f0; padding: 10px; margin-top: 20px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #bracketContainer {
+            margin-top: 20px;
+        }
+        .pair {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .pair button {
+            width: 48%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #admin-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+        }
+        #debug { 
+            background-color: #f0f0f0; 
+            padding: 10px; 
+            margin-top: 20px; 
+        }
     </style>
 </head>
 <body>
